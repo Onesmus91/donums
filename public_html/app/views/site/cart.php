@@ -1,27 +1,49 @@
-<section class="page-hero"><div class="wrap"><span class="eyebrow">Quotation request</span><h1>Tell us what you need</h1><p>A few details are enough. We review every request personally and respond within one business day with a clear scope and price.</p></div></section>
-<section class="section"><div class="wrap layout-2">
-  <form class="card form" method="post" action="/request">
-    <?= csrf_field() . spam_fields() ?>
-    <div class="row2">
-      <div class="field"><label for="service">Service area</label>
-        <select id="service" name="service" required><option value="">Select a service</option><?php foreach ($all as $k => $s): ?><option value="<?= e($k) ?>"><?= e($s['title']) ?></option><?php endforeach; ?><option value="general">Something else</option></select></div>
-      <div class="field"><label for="need">What do you need?</label><input id="need" name="need" list="needs" maxlength="160" placeholder="e.g. Business website, home solar system" value="<?= e(qget('need')) ?>"><datalist id="needs"><?php foreach ($all as $s) { foreach ($s['items'] as $it) { echo '<option value="' . e($it[0]) . '">'; } } ?></datalist></div>
+<section class="page-hero"><div class="wrap">
+  <div class="crumbs"><a href="/">Home</a> / <a href="/#services">Solutions</a> / <?= e($s['title']) ?></div>
+  <span class="eyebrow"><?= e($s['title']) ?></span>
+  <h1><?= e($s['headline']) ?></h1>
+  <p>Strategic HR support for real business growth. Choose the service area closest to your need and we will help you scope the right approach.</p>
+  <div class="hero-actions"><a class="btn btn-accent" href="<?= e(url('/cart', ['service' => $slug])) ?>"><?= e($s['cta']) ?> <?= icon('arrow', 16) ?></a></div>
+</div></section>
+
+<section class="section"><div class="wrap">
+  <div class="grid g3">
+    <?php foreach ($s['items'] as [$name, $summary, $price, $preview]): ?>
+    <div class="card service-card" style="display:flex;flex-direction:column">
+      <div class="card-ic"><?= icon(svc_icon($slug), 20) ?></div>
+      <h3><?= e($name) ?></h3>
+      <p class="muted"><?= e($summary) ?></p>
+      <div class="service-meta">
+        <span class="chip chip-soft"><?= e($price) ?></span>
+      </div>
+      <details class="service-details">
+        <summary>What to expect</summary>
+        <p class="mt1"><?= e($preview) ?></p>
+      </details>
+      <div style="margin-top:auto;padding-top:18px;display:flex;justify-content:space-between;align-items:center;gap:10px">
+        <span class="small muted">Tailored support</span>
+        <a class="btn btn-primary btn-sm" href="<?= e(url('/cart', ['service' => $slug, 'need' => $name])) ?>">Request</a>
+      </div>
     </div>
-    <div class="row2">
-      <div class="field"><label for="name">Your name</label><input id="name" name="name" required maxlength="120" autocomplete="name"></div>
-      <div class="field"><label for="contact">Phone or email</label><input id="contact" name="contact" required maxlength="160" autocomplete="email" placeholder="So that we can reach you"></div>
+    <?php endforeach; ?>
+  </div>
+
+  <?php if ($extra): ?>
+  <h2 class="mt4">Current opportunities</h2>
+  <div class="grid g3">
+    <?php foreach ($extra as $c): ?>
+    <div class="card pad0 service-listing">
+      <?php if ($c['image']): ?><div class="thumb"><img src="<?= e(img_url($c['image'])) ?>" alt="<?= e($c['title']) ?>" loading="lazy"></div><?php endif; ?>
+      <div style="padding:20px">
+        <h3><?= e($c['title']) ?></h3>
+        <p class="muted small"><?= e(excerpt($c['description'], 140)) ?></p>
+        <div class="meta"><?php if ($c['price']): ?><span><?= icon('dollar', 14) ?><?= e($c['price']) ?></span><?php endif; ?><?php if ($c['location']): ?><span><?= icon('pin', 14) ?><?= e($c['location']) ?></span><?php endif; ?></div>
+        <a class="btn btn-ghost btn-sm mt2" href="<?= e(url('/cart', ['service' => $slug, 'need' => $c['title']])) ?>">Enquire</a>
+      </div>
     </div>
-    <div class="row2">
-      <div class="field"><label for="organisation">Organisation <span class="muted">(optional)</span></label><input id="organisation" name="organisation" maxlength="160" autocomplete="organization"></div>
-      <div class="field"><label for="location">Location</label><input id="location" name="location" maxlength="160" placeholder="Town / county"></div>
-    </div>
-    <div class="field"><label for="details">Details</label><textarea id="details" name="details" rows="5" maxlength="4000" placeholder="Describe the requirement, timeline and budget if you have one."></textarea><span class="hint">Please do not include passwords or payment card details.</span></div>
-    <label class="check"><input type="checkbox" required> <span>I agree that Donums may contact me about this request, as described in the <a href="/privacy" target="_blank">Privacy Policy</a>.</span></label>
-    <button class="btn btn-primary" type="submit">Send request <?= icon('send', 16) ?></button>
-  </form>
-  <aside class="sticky">
-    <div class="card"><h3>What happens next</h3>
-      <ul class="list-clean list-check"><li><?= icon('check', 16) ?>We acknowledge your request immediately.</li><li><?= icon('check', 16) ?>A consultant reviews it and contacts you.</li><li><?= icon('check', 16) ?>You receive a written quotation.</li><li><?= icon('check', 16) ?>Work starts only after you approve.</li></ul></div>
-    <div class="card mt2"><h3>Prefer to talk?</h3><p class="muted small">Call <a href="tel:<?= e(preg_replace('/\s+/', '', cfg('phone1'))) ?>"><?= e(cfg('phone1')) ?></a> or <a href="https://wa.me/<?= e(cfg('whatsapp')) ?>" target="_blank" rel="noopener">message us on WhatsApp</a>.</p></div>
-  </aside>
+    <?php endforeach; ?>
+  </div>
+  <?php endif; ?>
+
+  <div class="cta-band mt4"><div><h2>Need a custom HR solution?</h2><p>Tell us the business challenge and we will recommend the most appropriate engagement model.</p></div><a class="btn btn-accent" href="/contact">Talk to us</a></div>
 </div></section>
