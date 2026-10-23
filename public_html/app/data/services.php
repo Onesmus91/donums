@@ -1,37 +1,65 @@
 <?php
-// Service catalogue: slug => title, headline, cta, items[name, summary, price, preview text]
-return [
-'marketing'=>['title'=>'Marketing & Growth','headline'=>'Get your business in front of more buyers.','cta'=>'Build my marketing plan','items'=>[
- ['Lead generation','Prospect research, outreach and qualified leads.','From KSh 20,000','A practical lead-generation workflow showing prospect research, qualification, outreach and follow-up.'],
- ['Social media management','Planning, publishing and community management.','From KSh 25,000/mo','Sample monthly content calendar, publishing workflow and community-management view.'],
- ['Video & content','Reels, short video, graphics and sales content.','From KSh 3,500/item','Preview a short-form content package built for campaigns, products and services.'],
- ['Campaign management','Campaign setup, creative, landing page and reporting.','Quote','Sample campaign journey from offer and landing page through enquiries and reporting.'],
- ['Outsourced marketing desk','A managed marketing function without a full-time team.','From KSh 50,000/mo','Example outsourced desk covering planning, content, leads, reporting and weekly execution.'],
- ['Sales materials','Company profiles, proposals, decks and brochures.','From KSh 8,000','Preview a clean Donums-style company profile / proposal structure.']]],
-'solar'=>['title'=>'Solar & Power','headline'=>'Buy solar equipment or get the right power system designed and installed.','cta'=>'Request solar quotes','items'=>[
- ['Home solar','Power essential loads or a full home.','Quote','Example home system: load assessment, panels, inverter, battery bank, protection and installation.'],
- ['Business solar','Reduce grid dependence and protect operations.','Quote','Example SME system showing daytime load support, backup strategy and installation planning.'],
- ['Backup power, batteries & inverters','Backup systems, batteries, inverters, replacement and upgrades.','Shop / Quote','Real backup-power products and system examples can be listed below from the Donums Content Manager.'],
- ['Installation, fundi & maintenance professionals','Get a vetted solar installer, electrician, technician or maintenance professional.','Hire expert','Donums combines HR capability with our provider network to match customers with suitable solar installation and maintenance professionals.']]],
-'web'=>['title'=>'Websites & Online Selling','headline'=>'Launch the site or system your business actually needs.','cta'=>'Start my build','items'=>[
- ['Business website','Fast, mobile-first company website.','From KSh 15,000','Preview a modern service-business homepage with mobile navigation, service cards and conversion CTA.'],
- ['Online shop','Products, orders and online selling.','From KSh 25,000','Sample storefront with product catalogue, product detail, cart and checkout journey.'],
- ['Digital catalogue','Share products without managing a full store.','From KSh 10,000','Preview a searchable product catalogue with enquiry and WhatsApp conversion.'],
- ['Booking website','Appointments, requests and confirmations.','From KSh 25,000','Sample booking flow with service selection, availability, customer details and confirmation.'],
- ['Business system','Internal workflow, portal or dashboard.','Quote','Preview a lightweight operations dashboard for requests, jobs, finance and reporting.'],
- ['Website upgrade','Improve an existing site or rebuild it.','Quote','Before-and-after concept: stronger hierarchy, mobile UX, conversion paths, speed and visual consistency.']]],
-'space'=>['title'=>'Property & Space','headline'=>'Find residential or commercial property with a clearer, safer enquiry process.','cta'=>'Find property','items'=>[
- ['Residential homes','Apartments, houses, bedsitters and family homes to rent or buy.','Find','Sample property profile with location, price, photos, amenities, contact trail and viewing request.'],
- ['Warehouse / godown','Storage, distribution and light industrial use.','Find','Sample warehouse listing with floor area, access, power, location and commercial terms.'],
- ['Office','Private offices and business floors.','Find','Sample office listing with size, fit-out, parking, service charge and location.'],
- ['Shop / retail','Customer-facing commercial units.','Find','Sample retail-space listing with frontage, footfall context, size and rent.'],
- ['Industrial space','Production, yard and industrial premises.','Find','Sample industrial brief covering access, yard, power, zoning context and lease terms.'],
- ['List a property','Owners and authorised agents can submit property for customer matching.','List','Property intake preview: ownership/authority details, location, pricing, media and viewing instructions.']]],
-'hr'=>['title'=>'HR & Admin','headline'=>'Get practical people and administration support when you need it.','cta'=>'Get HR support','items'=>[
- ['Recruitment','Sourcing, screening, interviews and hiring support.','From KSh 20,000','Sample recruitment tracker from vacancy brief through shortlist, interview and offer.'],
- ['Outsourced HR','Day-to-day HR support for growing teams.','From KSh 25,000/mo','Example monthly HR desk covering employee records, attendance, leave, ER support and reporting.'],
- ['Policies & compliance','Contracts, policies, procedures and HR documentation.','From KSh 8,000','Preview a structured HR policy and documentation pack.'],
- ['Payroll support','Payroll preparation and employee records support.','Quote','Sample payroll-readiness workflow covering inputs, checks, changes and approval.'],
- ['Virtual administration','Remote operations and administrative support.','From KSh 15,000/mo','Example remote support desk for inbox, scheduling, records, follow-ups and reporting.'],
- ['Career support','CV, LinkedIn and application positioning.','From KSh 3,500','Preview a professional CV / LinkedIn positioning workflow.']]]
-];
+$u = user();
+$nav = ['services' => ['/#services', 'Solutions'], 'learning' => ['/learning', 'Academy'], 'jobs' => ['/jobs', 'Talent'], 'forum' => ['/forum', 'Insights'], 'webinars' => ['/webinars', 'Events'], 'contact' => ['/contact', 'Contact']];
+$pageTitle = ($title && $title !== cfg('site_name')) ? $title . ' · ' . cfg('site_name') : cfg('site_name') . ' — ' . setting('site_tagline', 'Global HR, talent strategy and people operations');
+$canon = $canonical ?: abs_url(strtok($_SERVER['REQUEST_URI'] ?? '/', '?'));
+?><!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title><?= e($pageTitle) ?></title>
+<meta name="description" content="<?= e($desc ?: setting('site_tagline')) ?>">
+<link rel="canonical" href="<?= e($canon) ?>">
+<?php if ($noindex): ?><meta name="robots" content="noindex,nofollow"><?php endif; ?>
+<meta property="og:site_name" content="<?= e(cfg('site_name')) ?>">
+<meta property="og:title" content="<?= e($title) ?>">
+<meta property="og:description" content="<?= e($desc ?: setting('site_tagline')) ?>">
+<meta property="og:type" content="website">
+<meta property="og:url" content="<?= e($canon) ?>">
+<meta property="og:image" content="<?= e($og_image ? abs_url($og_image) : abs_url('/assets/img/logo.png')) ?>">
+<meta name="theme-color" content="#0f172a">
+<link rel="manifest" href="/manifest.webmanifest"><link rel="icon" href="/assets/img/icon-192.png"><link rel="apple-touch-icon" href="/assets/img/icon-192.png">
+<link rel="stylesheet" href="/assets/css/app.css?v=<?= DN_VERSION ?>">
+<script type="application/ld+json"><?= json_encode(['@context' => 'https://schema.org', '@type' => 'Organization', 'name' => cfg('site_name'), 'url' => abs_url('/'), 'logo' => abs_url('/assets/img/logo.png')]) ?></script>
+<?php if ($schema): ?><script type="application/ld+json"><?= json_encode($schema, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) ?></script><?php endif; ?>
+<?= $head_extra ?>
+</head>
+<body class="<?= e($body_class) ?>">
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-head">
+  <div class="wrap">
+    <a class="brand" href="/" aria-label="Donums HR Global — home"><img src="/assets/img/logo.png" alt="Donums HR Global" width="95" height="49"></a>
+    <nav class="nav" id="nav" aria-label="Main">
+      <?php foreach ($nav as $k => [$href, $label]): ?><a href="<?= e($href) ?>" class="<?= $active === $k ? 'on' : '' ?>"><?= e($label) ?></a><?php endforeach; ?>
+      <a class="m-only" href="<?= $u ? '/account' : '/account/login' ?>"><?= $u ? 'My account' : 'Sign in' ?></a>
+      <a class="m-only" href="/cart">Book consultation</a>
+    </nav>
+    <div class="head-cta">
+      <?php if ($u): ?>
+        <?php if (is_staff()): ?><a class="btn btn-ghost btn-sm" href="/admin"><?= icon('sliders', 16) ?> Admin</a><?php endif; ?>
+        <a class="user-chip" href="/account" aria-label="My account"><?= avatar_html($u, 30) ?><span><?= e(explode(' ', $u['name'])[0]) ?></span><?php if (($n = unread_notifications()) > 0): ?><span class="dot"><?= $n > 99 ? '99+' : $n ?></span><?php endif; ?></a>
+      <?php else: ?>
+        <a class="btn btn-ghost btn-sm" href="/account/login">Sign in</a><a class="btn btn-primary btn-sm" href="/cart">Book consultation</a>
+      <?php endif; ?>
+    </div>
+    <button class="menu-btn" id="menuBtn" aria-label="Open menu" aria-expanded="false" aria-controls="nav"><?= icon('menu', 22) ?></button>
+  </div>
+</header>
+<main id="main"><?php $f = flash_html(); if ($f): ?><div class="wrap"><?= $f ?></div><?php endif; ?><?= $content ?></main>
+<footer class="site-foot">
+  <div class="wrap">
+    <div class="foot-grid">
+      <div class="foot-brand"><img src="/assets/img/logo.png" alt="Donums HR Global" height="40"><p class="mt2" style="max-width:34ch">Global HR partner for founders, growing businesses, and executive teams seeking better people, sharper operations, and measurable performance.</p></div>
+      <div><h4>Solutions</h4><?php foreach ((require APP . '/data/services.php') as $slug => $s): ?><a href="/services/<?= e($slug) ?>"><?= e($s['title']) ?></a><?php endforeach; ?></div>
+      <div><h4>Platform</h4><a href="/learning">Learning & development</a><a href="/jobs">Talent pipeline</a><a href="/forum">Insights & network</a><a href="/webinars">Leadership events</a><a href="/sell">Partner with us</a></div>
+      <div><h4>Contact</h4><a href="tel:<?= e(preg_replace('/\s+/', '', cfg('phone1'))) ?>"><?= e(cfg('phone1')) ?></a><a href="tel:<?= e(preg_replace('/\s+/', '', cfg('phone2'))) ?>"><?= e(cfg('phone2')) ?></a><a href="mailto:<?= e(cfg('email')) ?>"><?= e(cfg('email')) ?></a><a href="/contact">Book a consultation</a></div>
+    </div>
+    <form class="news" method="post" action="/subscribe"><?= csrf_field() . spam_fields() ?><label for="nl">Get strategic HR updates</label><div style="display:flex;gap:8px"><input id="nl" type="email" name="email" placeholder="Your work email" required><button class="btn btn-accent btn-sm" type="submit">Join</button></div></form>
+    <div class="foot-bottom"><span>© <?= date('Y') ?> Donums HR Global. All rights reserved.</span><span><a style="display:inline;padding:0 8px" href="/privacy">Privacy</a><a style="display:inline;padding:0 8px" href="/terms">Terms</a></span></div>
+  </div>
+</footer>
+<a class="wa-float" href="https://wa.me/<?= e(cfg('whatsapp')) ?>?text=<?= rawurlencode('Hello Donums HR Global, I would like to discuss our HR needs.') ?>" target="_blank" rel="noopener" aria-label="Chat on WhatsApp"><?= icon('whatsapp', 18) ?> <span>WhatsApp</span></a>
+<script src="/assets/js/app.js?v=<?= DN_VERSION ?>" defer></script>
+</body>
+</html>
