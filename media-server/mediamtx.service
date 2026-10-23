@@ -1,0 +1,17 @@
+[Unit]
+Description=MediaMTX media server (Donums)
+After=network.target
+
+[Service]
+ExecStart=/opt/donums-media/mediamtx /etc/donums-media/mediamtx.yml
+Restart=always
+RestartSec=3
+User=donums-media
+LimitNOFILE=65536
+NoNewPrivileges=true
+ProtectSystem=full
+ProtectHome=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

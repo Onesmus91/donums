@@ -1,0 +1,17 @@
+[Unit]
+Description=Donums restream helper
+After=network.target mediamtx.service
+
+[Service]
+EnvironmentFile=/etc/donums-media/helper.env
+ExecStart=/usr/bin/python3 /opt/donums-media/restream-helper.py
+Restart=always
+RestartSec=3
+User=donums-media
+NoNewPrivileges=true
+ProtectSystem=full
+ProtectHome=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

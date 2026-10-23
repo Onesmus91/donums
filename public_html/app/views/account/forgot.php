@@ -1,0 +1,2 @@
+<div class="wrap"><div class="form-card"><h1>Reset your password</h1><p class="sub">Enter your email address and we will send you a secure link to choose a new password.</p>
+<form class="form" method="post" action="/account/forgot"><?= csrf_field() ?><div class="field"><label for="email">Email address</label><input id="email" type="email" name="email" required autofocus></div><button class="btn btn-primary btn-block">Send reset link</button><a class="small center" href="/account/login">Back to sign in</a></form></div></div>

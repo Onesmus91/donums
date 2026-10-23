@@ -1,0 +1,9 @@
+User-agent: *
+Disallow: /admin
+Disallow: /account
+Disallow: /api/
+Disallow: /file/
+Disallow: /cart
+Allow: /
+
+Sitemap: https://donums.co.ke/sitemap.xml

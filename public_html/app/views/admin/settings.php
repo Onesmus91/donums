@@ -1,0 +1,9 @@
+<form class="panel" method="post" action="/admin/settings" style="max-width:860px"><?= csrf_field() ?><div class="panel-b form">
+<h3 style="margin:0">Website</h3><?= a_in('Tagline (used in search and sharing)', 'site_tagline', setting('site_tagline')) ?>
+<h3 style="margin:10px 0 0">Payment instructions <span class="muted small">— shown to learners and webinar attendees when paying</span></h3>
+<div class="row3"><?= a_in('M-Pesa Paybill number', 'pay_mpesa_paybill', setting('pay_mpesa_paybill')) ?><?= a_in('Paybill account name/number', 'pay_mpesa_account', setting('pay_mpesa_account'), ['hint' => 'Leave blank to use the payment reference.']) ?><?= a_in('Buy Goods Till number', 'pay_mpesa_till', setting('pay_mpesa_till')) ?></div>
+<?= a_in('Bank transfer details', 'pay_bank', setting('pay_bank'), ['type' => 'textarea', 'rows' => 3, 'hint' => 'Bank, account name, account number, branch.']) ?><?= a_in('Note shown under the instructions', 'pay_note', setting('pay_note')) ?>
+<h3 style="margin:10px 0 0">Community</h3><?= a_check('Hold a member’s first posts for moderator approval', 'forum_moderate_new', setting('forum_moderate_new', '1') === '1') ?>
+<h3 style="margin:10px 0 0">Email</h3><?= a_in('Messages released per scheduled run (campaigns)', 'mail_batch', setting('mail_batch', '25'), ['type' => 'number', 'min' => 5, 'hint' => 'With the cron job running every 5 minutes, 25 means up to 300 emails/hour. Keep within your host’s hourly sending limit.']) ?>
+<h3 style="margin:10px 0 0">Live sessions</h3><?= a_in('ICE / TURN servers (JSON, optional)', 'ice_servers', setting('ice_servers'), ['type' => 'textarea', 'rows' => 3, 'hint' => 'Default uses a public STUN server. For reliable connections behind strict firewalls add your own TURN server, e.g. [{"urls":"stun:stun.l.google.com:19302"},{"urls":"turn:turn.example.com:3478","username":"u","credential":"p"}]']) ?>
+<div><button class="btn btn-primary">Save settings</button></div></div></form>

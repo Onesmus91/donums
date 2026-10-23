@@ -1,0 +1,29 @@
+DELETE these from public_html after uploading the new version
+(they are from the previous site; the new router blocks them from being served, but remove them to keep things clean):
+
+  README-INCREMENTAL-Jobs-Learning-Mail-Names.txt
+  account/            (folder)
+  admin/              (folder — old admin pages)
+  api/                (folder — old api/*.php files)
+  api-contact-submit
+  app/admin-core.php
+  app/bootstrap.php
+  app/modules/        (folder)
+  cart.php  contact.php  contact/  data-example-mail_accounts.json  download
+  forum/              (folder)
+  job/  jobs.php  jobs/
+  learning.php  learning/
+  login/  partner.php  privacy.php  privacy/  service.php  terms.php  terms/
+  thank-you/  track.php  webinars/
+  (the old index.php is replaced by the new one)
+
+KEEP:
+  config.php
+  data/               (your live data — the new system reads and migrates it)
+  assets/uploads/     (your uploaded images and PDFs)
+
+AFTER you have verified the migration (Admin > System & security shows the list), delete from data/ :
+  admin.json  mail_accounts.json  mail_log.json  requests.ndjson  operations.json  partners.json
+  recruitment_jobs.json  job_applications.json  learning_courses.json  learning_enrolments.ndjson
+  catalog.json  forum.json  webinars.json  jobs.json  mail_drafts.json  mail_display_names.json  private-cv/
+(keep a downloaded copy somewhere private first)

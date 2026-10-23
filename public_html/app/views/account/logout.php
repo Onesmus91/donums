@@ -1,0 +1,1 @@
+<div class="wrap"><div class="form-card center"><h1>Sign out?</h1><p class="sub">You will need to sign in again to access your account.</p><form method="post" action="/account/logout"><?= csrf_field() ?><button class="btn btn-primary btn-block">Sign out</button></form><p class="mt2"><a href="/account">Stay signed in</a></p></div></div>

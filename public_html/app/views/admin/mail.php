@@ -1,0 +1,60 @@
+<?php $F = mail_folders(); $base = fn(array $x = []) => url('/admin/mail', array_filter(['mailbox' => $mailbox, 'folder' => $folder !== 'inbox' ? $folder : null] + $x)); $cur = $msg ? '/admin/mail/' . (int) $msg['id'] : $base(); ?>
+<div class="mail">
+  <aside class="m-side">
+    <a class="btn btn-primary btn-sm" href="<?= e(url('/admin/mail/compose', ['mailbox' => $mailbox])) ?>"><?= icon('edit', 15) ?> Compose</a>
+    <span class="m-box">Mailbox</span>
+    <form method="get" action="/admin/mail" style="margin:0 4px 6px"><select name="mailbox" onchange="this.form.submit()" aria-label="Mailbox" style="padding:8px 10px;font-weight:600;font-size:.85rem"><?php foreach ($boxes as $b): ?><option value="<?= e($b['address']) ?>" <?= $b['address'] === $mailbox ? 'selected' : '' ?>><?= e($b['address']) ?><?= $b['unread'] ? ' (' . $b['unread'] . ' unread)' : '' ?><?= !$b['has_pw'] ? ' ⚠' : '' ?></option><?php endforeach; ?></select></form>
+    <?php $cbx = array_values(array_filter($boxes, fn($b) => $b['address'] === $mailbox))[0] ?? null; if ($cbx && !$cbx['has_pw']): ?><p class="xs" style="padding:2px 10px;color:var(--warn)">No password set — <a href="/admin/mail/settings">add it in settings</a>.</p><?php endif; ?>
+    <span class="m-box">Folders</span>
+    <?php foreach ($F as $k => [$lbl, $ic]): ?><a class="m-f <?= $folder === $k && !$msg ? 'on' : ($msg && $msg['folder'] === $k ? 'on' : '') ?>" href="<?= e(url('/admin/mail', ['mailbox' => $mailbox, 'folder' => $k !== 'inbox' ? $k : null])) ?>"><span><?= icon($ic, 15) ?> <?= e($lbl) ?></span><?php $n = $counts[$k] ?? 0; if ($n): ?><span class="n"><?= $n ?></span><?php endif; ?></a><?php endforeach; ?>
+    <span class="m-box">Tools</span>
+    <a class="m-f" href="/admin/templates">Templates</a><a class="m-f" href="/admin/campaigns">Campaigns</a><a class="m-f" href="/admin/contacts">Contacts</a><a class="m-f" href="/admin/mail/settings">Mailbox settings</a>
+    <?php $cb = array_values(array_filter($boxes, fn($b) => $b['address'] === $mailbox))[0] ?? null; if ($cb): ?><p class="xs muted" style="padding:10px" id="syncInfo"><?= $cb['last_error'] ? '<span style="color:var(--err)">⚠ ' . e($cb['last_error']) . '</span>' : ($cb['last_sync_at'] ? 'Synced ' . e(ago($cb['last_sync_at'])) : 'Not synced yet') ?></p><?php endif; ?>
+  </aside>
+
+  <section class="m-list" id="mList">
+    <form class="m-search" method="get" action="/admin/mail"><input type="hidden" name="mailbox" value="<?= e($mailbox) ?>"><input type="hidden" name="folder" value="<?= e($folder) ?>"><input type="search" name="q" value="<?= e($s) ?>" placeholder="Search mail…" style="padding:8px 10px"><button class="rowbtn" type="button" id="syncBtn" title="Check for new mail" data-mailbox="<?= e($mailbox) ?>"><?= icon('download', 14) ?></button></form>
+    <?php if ($folder === 'drafts'): foreach ($drafts as $d): ?><a class="m-item" href="<?= e(url('/admin/mail/compose', ['draft' => $d['id']])) ?>"><div class="f"><b><?= e($d['to_list'] ?: '(no recipient)') ?></b><span class="muted xs"><?= e(ago($d['updated_at'])) ?></span></div><div class="s"><?= e($d['subject'] ?: '(No subject)') ?></div><div class="p"><?= e(excerpt($d['body'], 80)) ?></div></a><?php endforeach; if (!$drafts): ?><p class="muted center" style="padding:30px">No drafts.</p><?php endif;
+    elseif (in_array($folder, ['outbox', 'scheduled'], true)): foreach ($queue as $o): ?><div class="m-item"><div class="f"><b><?= e($o['to_email']) ?></b><span class="muted xs"><?= $folder === 'scheduled' ? e(fmt_dt($o['send_after'])) : e(ago($o['created_at'])) ?></span></div><div class="s"><?= e($o['subject']) ?></div><div class="p"><?= $o['status'] === 'failed' ? '<span style="color:var(--err)">Failed — ' . e($o['error']) . '</span>' : 'Queued · attempt ' . (int) $o['attempts'] ?></div>
+      <form method="post" action="/admin/mail/outbox/<?= (int) $o['id'] ?>" style="display:flex;gap:6px;margin-top:6px"><?= csrf_field() ?><button class="rowbtn" name="action" value="retry">Send now</button><button class="rowbtn danger" name="action" value="cancel">Cancel</button></form></div><?php endforeach; if (!$queue): ?><p class="muted center" style="padding:30px">Nothing waiting.</p><?php endif;
+    else: ?>
+      <form method="post" action="/admin/mail/action" id="bulk"><?= csrf_field() ?><input type="hidden" name="back" value="<?= e($cur) ?>">
+      <?php if ($items): ?><div style="display:flex;gap:6px;padding:8px 10px;border-bottom:1px solid var(--line);flex-wrap:wrap;background:#fafcfb"><label class="ck xs"><input type="checkbox" id="selAll"> All</label><button class="rowbtn" name="action" value="read">Mark read</button><button class="rowbtn" name="action" value="archive">Archive</button><button class="rowbtn danger" name="action" value="<?= $folder === 'trash' ? 'delete' : 'trash' ?>" <?= $folder === 'trash' ? 'data-confirm="Permanently delete the selected messages?"' : '' ?>><?= $folder === 'trash' ? 'Delete forever' : 'Trash' ?></button></div><?php endif; ?>
+      <?php foreach ($items as $m): $who = $m['folder'] === 'sent' ? implode(', ', array_column(json_dec($m['to_json']), 0)) : ($m['from_name'] ?: $m['from_email']); ?>
+        <div style="display:flex;align-items:flex-start"><label style="padding:14px 0 0 10px"><input type="checkbox" name="ids[]" value="<?= (int) $m['id'] ?>" class="sel" aria-label="Select"></label>
+        <a class="m-item <?= $m['is_read'] ? '' : 'unread' ?> <?= $msg && $msg['id'] == $m['id'] ? 'on' : '' ?>" style="flex:1;min-width:0" href="<?= e(url('/admin/mail/' . $m['id'], ['mailbox' => $mailbox, 'folder' => $folder !== 'inbox' ? $folder : null])) ?>"><div class="f"><b><?= e($who) ?></b><span class="muted xs"><?= e(ago($m['msg_date'])) ?></span></div><div class="s"><?= $m['is_starred'] ? '★ ' : '' ?><?= $m['has_att'] ? '📎 ' : '' ?><?= e($m['subject']) ?></div><div class="p"><?= e($m['snippet']) ?></div></a></div>
+      <?php endforeach; if (!$items): ?><div style="padding:34px;text-align:center" class="muted"><?= icon('inbox', 28) ?><p><?= $s ? 'No messages match your search.' : 'This folder is empty.' ?></p></div><?php endif; ?>
+      </form><?= $items ? '<div style="padding:10px">' . pager($pg, '/admin/mail', ['mailbox' => $mailbox, 'folder' => $folder !== 'inbox' ? $folder : null, 'q' => $s]) . '</div>' : '' ?>
+    <?php endif; ?>
+  </section>
+
+  <section class="m-read">
+  <?php if (!$msg): ?><div style="display:grid;place-items:center;height:100%;color:var(--muted);text-align:center;padding:30px"><div><?= icon('mail', 38) ?><h3>Select a message</h3><p class="small">Choose a conversation on the left, or compose a new message.</p></div></div>
+  <?php else: $to = json_dec($msg['to_json']); $cc = json_dec($msg['cc_json']); ?>
+    <div class="m-head"><h2><?= e($msg['subject']) ?></h2>
+      <div class="small"><strong><?= e($msg['from_name'] ?: $msg['from_email']) ?></strong> <span class="muted">&lt;<?= e($msg['from_email']) ?>&gt;</span><br><span class="muted">To: <?= e(implode(', ', array_map(fn($a) => $a[0] ?? '', $to))) ?><?= $cc ? ' · Cc: ' . e(implode(', ', array_map(fn($a) => is_array($a) ? $a[0] : $a, $cc))) : '' ?> · <?= e(fmt_dt($msg['msg_date'])) ?></span></div>
+      <?php if ($req): ?><p class="small mt1"><?= icon('link', 14) ?> Linked to request <a href="/admin/requests/<?= e($req['ref']) ?>"><?= e($req['ref']) ?></a> (<?= e($req['name']) ?>)</p><?php endif; ?>
+      <div class="m-actions"><a class="btn btn-primary btn-xs" href="<?= e(url('/admin/mail/compose', ['reply' => $msg['id'], 'mode' => 'reply'])) ?>">Reply</a><a class="btn btn-ghost btn-xs" href="<?= e(url('/admin/mail/compose', ['reply' => $msg['id'], 'mode' => 'replyall'])) ?>">Reply all</a><a class="btn btn-ghost btn-xs" href="<?= e(url('/admin/mail/compose', ['reply' => $msg['id'], 'mode' => 'forward'])) ?>">Forward</a>
+        <form method="post" action="/admin/mail/action" style="display:contents"><?= csrf_field() ?><input type="hidden" name="ids[]" value="<?= (int) $msg['id'] ?>"><input type="hidden" name="back" value="<?= e($cur) ?>">
+          <button class="btn btn-ghost btn-xs" name="action" value="<?= $msg['is_starred'] ? 'unstar' : 'star' ?>"><?= $msg['is_starred'] ? '★ Unstar' : '☆ Star' ?></button><button class="btn btn-ghost btn-xs" name="action" value="unread">Mark unread</button><button class="btn btn-ghost btn-xs" name="action" value="archive">Archive</button><button class="btn btn-ghost btn-xs" name="action" value="<?= $msg['folder'] === 'trash' ? 'inbox' : 'trash' ?>"><?= $msg['folder'] === 'trash' ? 'Restore' : 'Trash' ?></button></form>
+        <?php if (!$req && $msg['folder'] !== 'sent'): ?><form method="post" action="/admin/mail/<?= (int) $msg['id'] ?>/request" style="display:contents"><?= csrf_field() ?><button class="btn btn-ghost btn-xs" title="Create a customer request from this email"><?= icon('plus', 13) ?> Create request</button></form><?php endif; ?></div></div>
+    <div class="m-body">
+      <?php if ($blocked): ?><div class="callout warn small" style="margin-bottom:12px">Remote images are hidden to protect your privacy. <a href="<?= e(url('/admin/mail/' . $msg['id'], ['images' => 1, 'mailbox' => $mailbox])) ?>">Show images</a></div><?php endif; ?>
+      <iframe id="mailFrame" sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox" title="Message" srcdoc="<?= e('<!doctype html><html><head><meta charset="utf-8"><base target="_blank"><style>@font-face{font-family:Montserrat;font-weight:100 900;src:url(/assets/fonts/montserrat-latin-wght-normal.woff2) format("woff2")}body{font:14.5px/1.65 Montserrat,Arial,sans-serif;color:#14231b;margin:0;word-wrap:break-word}img{max-width:100%;height:auto}a{color:#08733d}blockquote{border-left:3px solid #ccd;margin:8px 0;padding-left:12px;color:#556}table{max-width:100%}</style></head><body>' . $bodyHtml . '</body></html>') ?>"></iframe>
+      <?php if ($atts): ?><h4 class="mt2"><?= icon('clip', 15) ?> Attachments</h4><div class="chips"><?php foreach ($atts as $a): ?><a class="chip" href="/file/mail/<?= (int) $a['id'] ?>"><?= e($a['filename']) ?> <span class="muted xs"><?= e(human_size((int) $a['size'])) ?></span></a><?php endforeach; ?></div><?php endif; ?>
+      <?php if ($thread): ?><h4 class="mt3">Earlier in this conversation</h4><?php foreach ($thread as $t): ?><p class="small" style="margin:0 0 6px"><a href="<?= e(url('/admin/mail/' . $t['id'], ['mailbox' => $mailbox])) ?>"><?= e($t['subject']) ?></a> <span class="muted">· <?= e($t['from_name'] ?: $t['from_email']) ?> · <?= e(ago($t['msg_date'])) ?></span></p><?php endforeach; endif; ?>
+    </div>
+  <?php endif; ?>
+  </section>
+</div>
+<script>
+(function(){
+ var f=document.getElementById('mailFrame'); if(f){f.addEventListener('load',function(){try{var h=f.contentDocument.documentElement.scrollHeight;f.style.height=Math.max(260,h+20)+'px'}catch(e){}})}
+ var all=document.getElementById('selAll'); if(all){all.addEventListener('change',function(){document.querySelectorAll('.sel').forEach(function(c){c.checked=all.checked})})}
+ var btn=document.getElementById('syncBtn');
+ function sync(auto){ if(!btn)return; btn.disabled=true; var fd=new FormData(); fd.append('mailbox',btn.dataset.mailbox); fd.append('_csrf','<?= e(csrf_token()) ?>');
+  fetch('/admin/mail/sync',{method:'POST',body:fd,headers:{'Accept':'application/json'}}).then(function(r){return r.json()}).then(function(d){btn.disabled=false; var i=document.getElementById('syncInfo');
+    if(d.added>0){ if(auto && !document.querySelector('.m-read iframe')) location.reload(); else if(i) i.innerHTML='<b>'+d.added+' new message(s)</b> — <a href="">refresh</a>'; } else if(i && d.errors && d.errors.length){ i.innerHTML='<span style="color:var(--err)">⚠ '+d.errors[0]+'</span>'} else if(i){ i.textContent='Up to date'} }).catch(function(){btn.disabled=false}); }
+ if(btn){btn.addEventListener('click',function(){sync(false)}); <?php if (!$msg && $cb && $cb['has_pw'] && (!$cb['last_sync_at'] || time() - strtotime($cb['last_sync_at']) > 120)): ?>setTimeout(function(){sync(true)},400);<?php endif; ?>}
+})();
+</script>

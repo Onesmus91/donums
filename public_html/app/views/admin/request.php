@@ -1,0 +1,14 @@
+<?php $isMail = str_contains($r['contact'], '@'); ?>
+<div class="two"><div>
+  <div class="panel"><div class="panel-h"><span><?= e($r['service']) ?> — <?= e($r['need']) ?></span><?= badge($r['status'], 'blue') ?></div><div class="panel-b">
+    <dl class="kv"><dt>Customer</dt><dd><strong><?= e($r['name']) ?></strong><?= $r['organisation'] ? ' · ' . e($r['organisation']) : '' ?></dd><dt>Contact</dt><dd><?= e($r['contact']) ?> <?= $isMail ? '<a class="rowbtn" href="' . e(url('/admin/mail/compose', ['to' => $r['contact'], 'subject' => 'Re: ' . ($r['need'] ?: $r['service']) . ' (' . $r['ref'] . ')', 'request' => $r['ref']])) . '">Email</a>' : '<a class="rowbtn" href="tel:' . e(preg_replace('/\s+/', '', $r['contact'])) . '">Call</a> <a class="rowbtn" target="_blank" rel="noopener" href="https://wa.me/' . e(preg_replace('/\D/', '', $r['contact'])) . '">WhatsApp</a>' ?></dd><dt>Location</dt><dd><?= e($r['location']) ?: '—' ?></dd><dt>Source</dt><dd><?= e($r['source']) ?> · <?= e(fmt_dt($r['created_at'])) ?></dd></dl>
+    <h3 class="mt2">Details</h3><p><?= nl2br(e($r['details'])) ?: '<span class="muted">No details provided.</span>' ?></p></div></div>
+  <div class="panel"><div class="panel-h">Timeline</div><div class="panel-b"><?php foreach ($log as $l): ?><p class="small" style="margin:0 0 10px"><strong><?= e($l['name'] ?: 'System') ?></strong> <span class="muted">· <?= e(ago($l['created_at'])) ?></span><br><?= nl2br(e($l['text'])) ?></p><?php endforeach; ?><?php if (!$log): ?><span class="muted small">No activity yet.</span><?php endif; ?></div></div>
+  <?php if ($mails): ?><div class="panel"><div class="panel-h">Linked emails</div><div class="panel-b"><?php foreach ($mails as $m): ?><p class="small" style="margin:0 0 6px"><a href="/admin/mail/<?= (int) $m['id'] ?>"><?= e($m['subject']) ?></a> <span class="muted">· <?= e($m['folder']) ?> · <?= e(ago($m['msg_date'])) ?></span></p><?php endforeach; ?></div></div><?php endif; ?>
+</div>
+<form class="panel" method="post" action="/admin/requests/<?= e($r['ref']) ?>"><?= csrf_field() ?><div class="panel-h">Manage</div><div class="panel-b form">
+  <?= a_sel('Status', 'status', REQ_STATUS, $r['status']) ?><div class="row2"><?= a_in('Quote (KSh)', 'quote', $r['quote']) ?><?= a_sel('Payment', 'payment', PAY_STATUS, $r['payment']) ?></div>
+  <?= a_in('Assigned provider', 'provider', $r['provider']) ?><div class="row2"><?= a_in('Provider cost', 'provider_cost', $r['provider_cost']) ?><?= a_in('Follow-up date', 'followup', $r['followup'], ['type' => 'date']) ?></div>
+  <?= a_in('Add a note', 'note', '', ['type' => 'textarea', 'rows' => 3, 'hint' => 'Saved to the timeline.']) ?><button class="btn btn-primary">Save changes</button>
+  <?php if ($d): ?><p class="small muted">Delivery stage: <strong><?= e($d['stage']) ?></strong> — <a href="/admin/deliveries">open</a></p><?php endif; ?></div></form>
+</div>

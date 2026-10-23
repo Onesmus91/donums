@@ -1,0 +1,4 @@
+<section class="page-hero"><div class="wrap"><h1>How was the session?</h1><p><?= e($w['title']) ?></p></div></section>
+<section class="section"><div class="wrap narrow"><form class="card form" method="post" action="/webinars/<?= e($w['slug']) ?>/feedback"><?= csrf_field() ?><input type="hidden" name="t" value="<?= e($reg['token']) ?>">
+<div class="field"><label for="rating">Overall rating</label><select id="rating" name="rating"><?php for ($i = 5; $i >= 1; $i--): ?><option value="<?= $i ?>" <?= ($reg['feedback_rating'] ?? 5) == $i ? 'selected' : '' ?>><?= $i ?> — <?= ['', 'Poor', 'Fair', 'Good', 'Very good', 'Excellent'][$i] ?></option><?php endfor; ?></select></div>
+<div class="field"><label for="comment">Comments</label><textarea id="comment" name="comment" rows="4"><?= e($reg['feedback_text']) ?></textarea></div><div><button class="btn btn-primary">Send feedback</button></div></form></div></section>
