@@ -1,101 +1,118 @@
 <?php
-/* =====================================================================
- * Safe uploads. Public images go to /assets/uploads (resized, re-encoded).
- * Everything sensitive (CVs, payment proofs, lesson files, mail
- * attachments) goes to the private data directory and is served only by
- * permission-checked routes.
- * ===================================================================== */
-
-const UPLOAD_DOCS = ['pdf' => ['application/pdf'], 'doc' => ['application/msword', 'application/octet-stream', 'application/x-ole-storage'],
-    'docx' => ['application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'application/zip', 'application/octet-stream']];
-
-function upload_error_text(int $code): string {
-    return [UPLOAD_ERR_INI_SIZE => 'The file is larger than the server allows.', UPLOAD_ERR_FORM_SIZE => 'The file is too large.',
-        UPLOAD_ERR_PARTIAL => 'The upload was interrupted. Please try again.', UPLOAD_ERR_NO_TMP_DIR => 'The server has no temporary folder for uploads.',
-        UPLOAD_ERR_CANT_WRITE => 'The server could not save the file.'][$code] ?? 'The upload failed.';
-}
-
 /**
- * Save an uploaded file privately.
- * @return array{path:string,name:string,size:int,mime:string}|string  array on success, error message otherwise
+ * Donums platform bootstrap.
+ * Loads configuration, prepares the private data directory, starts the session
+ * and registers the error handlers. Every request enters through here.
  */
-function save_private_upload(string $field, string $subdir, array $allowedExt, int $maxBytes, ?int $index = null) {
-    $f = $_FILES[$field] ?? null;
-    if (!$f) { return 'No file was uploaded.'; }
-    $get = fn($k) => $index === null ? ($f[$k] ?? null) : ($f[$k][$index] ?? null);
-    $err = (int) $get('error'); $tmp = (string) $get('tmp_name'); $orig = (string) $get('name'); $size = (int) $get('size');
-    if ($err === UPLOAD_ERR_NO_FILE) { return 'No file was uploaded.'; }
-    if ($err !== UPLOAD_ERR_OK) { return upload_error_text($err); }
-    if (!is_uploaded_file($tmp)) { return 'The upload could not be verified.'; }
-    if ($size > $maxBytes) { return 'The file must be ' . human_size($maxBytes) . ' or smaller.'; }
-    $ext = strtolower(pathinfo($orig, PATHINFO_EXTENSION));
-    if (!in_array($ext, $allowedExt, true)) { return 'This file type is not allowed. Accepted: ' . strtoupper(implode(', ', $allowedExt)) . '.'; }
-    $mime = (new finfo(FILEINFO_MIME_TYPE))->file($tmp) ?: 'application/octet-stream';
-    if ($ext === 'pdf' && $mime !== 'application/pdf') { return 'The file does not look like a valid PDF.'; }
-    if (in_array($ext, ['jpg', 'jpeg', 'png', 'webp', 'gif'], true) && !str_starts_with($mime, 'image/')) { return 'The file does not look like a valid image.'; }
-    if (in_array($ext, ['php', 'phtml', 'phar', 'exe', 'sh', 'js', 'html', 'htm', 'svg'], true)) { return 'This file type is not allowed.'; }
-    $dir = DATA_DIR . '/private/' . trim($subdir, '/');
-    if (!is_dir($dir)) { @mkdir($dir, 0750, true); }
-    $name = date('ymd') . '-' . bin2hex(random_bytes(8)) . '.' . $ext;
-    if (!move_uploaded_file($tmp, $dir . '/' . $name)) { return 'The file could not be saved.'; }
-    return ['path' => trim($subdir, '/') . '/' . $name, 'name' => mb_substr(preg_replace('/[^\w .()\-]+/u', '_', basename($orig)), 0, 120), 'size' => $size, 'mime' => $mime];
+if (PHP_VERSION_ID < 80000) {
+    http_response_code(500);
+    exit('Donums requires PHP 8.0 or newer. Your server is running PHP ' . PHP_VERSION . '.');
 }
 
-/** Public image upload: validated, resized (max 1600px) and re-encoded as WebP/JPEG. Returns URL or error string prefixed with "!". */
-function save_public_image(string $field, string $prefix = 'img', int $maxW = 1600): string {
-    $f = $_FILES[$field] ?? null;
-    if (!$f || (int) ($f['error'] ?? 4) === UPLOAD_ERR_NO_FILE) { return ''; }
-    if ((int) $f['error'] !== UPLOAD_ERR_OK) { return '!' . upload_error_text((int) $f['error']); }
-    if (!is_uploaded_file($f['tmp_name'])) { return '!The upload could not be verified.'; }
-    if ($f['size'] > 25 * 1024 * 1024) { return '!Images must be 25 MB or smaller.'; }
-    $info = @getimagesize($f['tmp_name']);
-    if (!$info || !in_array($info[2], [IMAGETYPE_JPEG, IMAGETYPE_PNG, IMAGETYPE_WEBP, IMAGETYPE_GIF], true)) { return '!Upload a JPG, PNG or WebP image.'; }
-    $dir = ROOT . '/assets/uploads';
-    if (!is_dir($dir)) { @mkdir($dir, 0755, true); }
-    $base = $prefix . '-' . date('ymd') . '-' . bin2hex(random_bytes(5));
-    if (function_exists('imagecreatefromstring')) {
-        $img = @imagecreatefromstring((string) file_get_contents($f['tmp_name']));
-        if ($img) {
-            $w = imagesx($img); $h = imagesy($img);
-            if ($w > $maxW) { $img2 = imagescale($img, $maxW); if ($img2) { imagedestroy($img); $img = $img2; } }
-            imagepalettetotruecolor($img); imagealphablending($img, true); imagesavealpha($img, true);
-            if (function_exists('imagewebp') && imagewebp($img, $dir . '/' . $base . '.webp', 82)) { imagedestroy($img); return '/assets/uploads/' . $base . '.webp'; }
-            if (imagejpeg($img, $dir . '/' . $base . '.jpg', 84)) { imagedestroy($img); return '/assets/uploads/' . $base . '.jpg'; }
-            imagedestroy($img);
-        }
-    }
-    // GD unavailable or the file could not be re-encoded: store the validated original instead.
-    $ext = [IMAGETYPE_JPEG => 'jpg', IMAGETYPE_PNG => 'png', IMAGETYPE_WEBP => 'webp', IMAGETYPE_GIF => 'gif'][$info[2]];
-    if (move_uploaded_file($f['tmp_name'], $dir . '/' . $base . '.' . $ext)) { return '/assets/uploads/' . $base . '.' . $ext; }
-    return '!The image could not be saved on this server (check folder permissions on assets/uploads).';
+define('ROOT', dirname(__DIR__));
+define('APP', __DIR__);
+define('DN_VERSION', '2.0.0');
+
+/* ---------- configuration (config.php is merged over defaults) ---------- */
+$GLOBALS['CFG'] = array_replace([
+    'site_name'  => 'Donums Consultants',
+    'email'      => 'info@donums.co.ke',
+    'phone1'     => '+254 106 026 970',
+    'phone2'     => '+254 707 153 426',
+    'whatsapp'   => '254106026970',
+    'location'   => 'Kiambu Mall, Kiambu County, Nairobi Metropolitan Area',
+    'domain'     => 'donums.co.ke',
+    'timezone'   => 'Africa/Nairobi',
+    'data_dir'   => '',            // leave empty to use /data inside public_html (protected). Better: a folder ABOVE public_html.
+    'debug'      => false,
+    'cron_token' => '',            // auto-generated on first run when empty
+    'socials'    => [
+        'LinkedIn' => '', 'Facebook' => '', 'Instagram' => '', 'X' => '', 'TikTok' => '', 'YouTube' => '',
+    ],
+    'noreply_mailbox' => 'info@donums.co.ke',
+], is_file(ROOT . '/config.php') ? (array) require ROOT . '/config.php' : []);
+
+function cfg(string $key, $default = null) {
+    return $GLOBALS['CFG'][$key] ?? $default;
 }
 
-/** Send a private file to the browser (caller must have authorised access). */
-function serve_private(string $relPath, string $downloadName = '', bool $inline = false, string $mime = ''): void {
-    $rel = ltrim(str_replace(['..', '\\'], '', $relPath), '/');
-    $full = DATA_DIR . '/private/' . $rel;
-    if (!is_file($full)) { not_found(); }
-    $mime = $mime ?: ((new finfo(FILEINFO_MIME_TYPE))->file($full) ?: 'application/octet-stream');
-    $safeInline = $inline && in_array($mime, ['application/pdf', 'image/png', 'image/jpeg', 'image/webp', 'image/gif', 'video/mp4', 'video/webm', 'audio/mpeg'], true);
-    header('Content-Type: ' . ($safeInline ? $mime : 'application/octet-stream'));
-    header('X-Content-Type-Options: nosniff');
-    header('Content-Disposition: ' . ($safeInline ? 'inline' : 'attachment') . '; filename="' . str_replace(['"', "\r", "\n"], '', $downloadName ?: basename($full)) . '"');
-    header('Content-Security-Policy: sandbox');
-    header('Cache-Control: private, max-age=0');
-    $size = filesize($full);
-    // Basic HTTP range support so lesson videos can seek
-    if ($safeInline && isset($_SERVER['HTTP_RANGE']) && preg_match('/bytes=(\d*)-(\d*)/', $_SERVER['HTTP_RANGE'], $m)) {
-        $start = $m[1] === '' ? max(0, $size - (int) $m[2]) : (int) $m[1];
-        $end = ($m[2] === '' || $m[1] === '') ? $size - 1 : min((int) $m[2], $size - 1);
-        if ($start <= $end && $start < $size) {
-            http_response_code(206);
-            header("Content-Range: bytes $start-$end/$size"); header('Accept-Ranges: bytes'); header('Content-Length: ' . ($end - $start + 1));
-            $fp = fopen($full, 'rb'); fseek($fp, $start); $left = $end - $start + 1;
-            while ($left > 0 && !feof($fp)) { $chunk = fread($fp, min(8192, $left)); echo $chunk; $left -= strlen($chunk); }
-            fclose($fp); exit;
-        }
-    }
-    header('Accept-Ranges: bytes'); header('Content-Length: ' . $size);
-    readfile($full);
+date_default_timezone_set((string) cfg('timezone', 'Africa/Nairobi'));
+mb_internal_encoding('UTF-8');
+
+/* ---------- private data directory ---------- */
+$dd = cfg('data_dir') ?: ROOT . '/data';
+if (!is_dir($dd)) { @mkdir($dd, 0750, true); }
+define('DATA_DIR', rtrim(str_replace('\\', '/', $dd), '/'));
+foreach (['private', 'private/cv', 'private/mail', 'private/lessons', 'private/proofs', 'logs', 'backups', 'cache'] as $sub) {
+    if (!is_dir(DATA_DIR . '/' . $sub)) { @mkdir(DATA_DIR . '/' . $sub, 0750, true); }
+}
+// Defence in depth: if the data directory lives inside the web root, deny all web access to it.
+if (!is_file(DATA_DIR . '/.htaccess')) {
+    @file_put_contents(DATA_DIR . '/.htaccess', "# Donums private data — never serve over HTTP\n<IfModule mod_authz_core.c>\nRequire all denied\n</IfModule>\n<IfModule !mod_authz_core.c>\nOrder allow,deny\nDeny from all\n</IfModule>\n");
+}
+if (!is_file(DATA_DIR . '/index.html')) { @file_put_contents(DATA_DIR . '/index.html', ''); }
+
+/* ---------- errors ---------- */
+ini_set('display_errors', cfg('debug') ? '1' : '0');
+ini_set('log_errors', '1');
+ini_set('error_log', DATA_DIR . '/logs/php-error.log');
+error_reporting(E_ALL);
+
+function app_log(string $channel, string $msg): void {
+    @file_put_contents(DATA_DIR . '/logs/' . preg_replace('/[^a-z0-9_-]/i', '', $channel) . '.log',
+        '[' . date('Y-m-d H:i:s') . '] ' . $msg . PHP_EOL, FILE_APPEND | LOCK_EX);
+}
+set_exception_handler(function (Throwable $e) {
+    app_log('error', get_class($e) . ': ' . $e->getMessage() . ' @ ' . $e->getFile() . ':' . $e->getLine());
+    if (!headers_sent()) { http_response_code(500); }
+    if (cfg('debug')) { echo '<pre>' . htmlspecialchars((string) $e) . '</pre>'; }
+    elseif (is_file(ROOT . '/errors/500.html')) { readfile(ROOT . '/errors/500.html'); }
+    else { echo 'Something went wrong. Please try again shortly.'; }
     exit;
+});
+
+/* ---------- libraries ---------- */
+foreach (['helpers', 'crypto', 'db', 'auth', 'view', 'upload', 'notify', 'mailer', 'mime', 'imap', 'media'] as $lib) {
+    require_once APP . '/lib/' . $lib . '.php';
 }
+
+/* ---------- session (skipped for CLI / cron / static tracking pixels) ---------- */
+if (PHP_SAPI !== 'cli') {
+    $https = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || (($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https');
+    define('IS_HTTPS', $https);
+    ini_set('session.use_strict_mode', '1');
+    ini_set('session.use_only_cookies', '1');
+    ini_set('session.cookie_httponly', '1');
+    ini_set('session.cookie_samesite', 'Lax');
+    ini_set('session.gc_maxlifetime', '86400');
+    session_name('dn_session');
+    session_set_cookie_params(['lifetime' => 0, 'path' => '/', 'secure' => $https, 'httponly' => true, 'samesite' => 'Lax']);
+    $sp = DATA_DIR . '/cache/sessions';
+    if (!is_dir($sp)) { @mkdir($sp, 0700, true); }
+    if (is_dir($sp) && is_writable($sp)) { session_save_path($sp); }
+    session_start();
+    if (empty($_SESSION['csrf'])) { $_SESSION['csrf'] = bin2hex(random_bytes(24)); }
+    if (!empty($_SESSION['uid']) && !empty($_SESSION['staff'])) {
+        if (isset($_SESSION['last']) && time() - $_SESSION['last'] > 3600) {
+            $csrf = $_SESSION['csrf']; session_unset(); $_SESSION['csrf'] = $csrf; $_SESSION['flash'] = [['info', 'Your admin session timed out. Please sign in again.']];
+        }
+        $_SESSION['last'] = time();
+    }
+} else {
+    define('IS_HTTPS', true);
+}
+
+// Security headers for every response
+if (PHP_SAPI !== 'cli' && !headers_sent()) {
+    header('X-Content-Type-Options: nosniff');
+    header('X-Frame-Options: SAMEORIGIN');
+    header('X-Permitted-Cross-Domain-Policies: none');
+    header('X-Download-Options: noopen');
+    header('Referrer-Policy: strict-origin-when-cross-origin');
+    header('Cross-Origin-Opener-Policy: same-origin');
+    header('Permissions-Policy: camera=(self), microphone=(self), display-capture=(self), geolocation=()');
+    header("Content-Security-Policy: default-src 'self'; img-src 'self' data: blob: https:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; font-src 'self' data:; connect-src 'self'; object-src 'none'; frame-ancestors 'self'; base-uri 'self'; form-action 'self';");
+    if (IS_HTTPS) { header('Strict-Transport-Security: max-age=31536000; includeSubDomains'); }
+}
+
+db(); // opens, migrates, and imports legacy data on first run

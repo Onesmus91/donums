@@ -1,16 +1,51 @@
-<section class="page-hero"><div class="wrap"><span class="eyebrow">Legal</span><h1>Terms & Conditions</h1><p>Last updated: 23 October 2026</p></div></section>
-<section class="section"><div class="wrap narrow md legal-shell">
-<p>These terms govern the use of Donums HR Global’s website, platform and services. By using the website or engaging our team, you agree to these terms.</p>
-<h2>Services and quotations</h2>
-<p>Donums provides HR, recruitment and people-operations support on a service basis. A request, listing, or indicative price does not create a binding obligation until the scope, price and responsibilities are confirmed in writing.</p>
-<h2>Payments</h2>
-<p>Payments should only be made against a Donums quotation, invoice or agreed service order. We do not accept payment by informal or unverified channels.</p>
-<h2>Accounts</h2>
-<p>You are responsible for protecting your account credentials and for activity under your account. You must provide truthful information and comply with all applicable laws.</p>
-<h2>Recruitment and HR support</h2>
-<p>Donums will act in good faith to source, screen and facilitate talent or HR support as agreed. Final hiring decisions remain the responsibility of the client organisation, and no guarantee of employment or outcome is implied.</p>
-<h2>Liability</h2>
-<p>Donums is not liable for indirect, consequential or special losses arising from use of the platform or services, except to the extent required by law.</p>
-<h2>Governing law</h2>
-<p>These terms are governed by the laws of Kenya, and any dispute will be handled under the jurisdiction of the Kenyan courts.</p>
-</div></section>
+# Donums platform — Apache / LiteSpeed
+Options -Indexes -MultiViews
+DirectoryIndex index.php
+
+<IfModule mod_rewrite.c>
+RewriteEngine On
+
+# Force HTTPS (uncomment once your SSL certificate is active)
+# RewriteCond %{HTTPS} !=on
+# RewriteCond %{HTTP:X-Forwarded-Proto} !https
+# RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+
+# Block direct access to sensitive directories and files.
+RewriteRule ^(app|data|vendor|\.git|\.svn)/ - [F,L]
+RewriteRule ^(config\.php|\.env|\.htaccess|\.user\.ini)$ - [F,L]
+
+# Static files that may be served directly
+RewriteRule ^assets/ - [L]
+RewriteRule ^\.well-known/ - [L]
+RewriteRule ^(sw\.js|manifest\.webmanifest|offline\.html|robots\.txt|favicon\.ico|errors/.*\.html)$ - [L]
+RewriteRule ^cron\.php$ - [L]
+
+# Everything else — including any leftover legacy .php files — goes through the router.
+RewriteRule ^ index.php [L,QSA]
+</IfModule>
+
+# Never allow script execution or listing inside upload folders
+<IfModule mod_headers.c>
+Header always set X-Content-Type-Options "nosniff"
+Header always set X-Frame-Options "SAMEORIGIN"
+Header always set Referrer-Policy "strict-origin-when-cross-origin"
+Header always set Permissions-Policy "camera=(self), microphone=(self), display-capture=(self), geolocation=()"
+Header always set Content-Security-Policy "default-src 'self'; img-src 'self' data: blob: https:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; font-src 'self' data:; connect-src 'self'; object-src 'none'; frame-ancestors 'self'; base-uri 'self'; form-action 'self';"
+</IfModule>
+
+# Compression and caching for static assets
+<IfModule mod_deflate.c>
+AddOutputFilterByType DEFLATE text/html text/css application/javascript application/json image/svg+xml
+</IfModule>
+<IfModule mod_expires.c>
+ExpiresActive On
+ExpiresByType image/webp "access plus 1 year"
+ExpiresByType image/png "access plus 6 months"
+ExpiresByType image/jpeg "access plus 6 months"
+ExpiresByType text/css "access plus 1 week"
+ExpiresByType application/javascript "access plus 1 week"
+</IfModule>
+
+ErrorDocument 403 /errors/403.html
+ErrorDocument 404 /errors/404.html
+ErrorDocument 500 /errors/500.html
